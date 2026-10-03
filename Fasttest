@@ -1704,7 +1704,6 @@ local function startWalkFling()
         end)
     end)
 end
-
 pcall(function()
     if not hookmetamethod then return end
     local oldNamecall
@@ -1851,7 +1850,6 @@ PlayerTab:CreateSlider({
     Callback = function(Value) SpinbotSpeed = Value end 
 })
 
--- Troll System
 local TargetPlayerName = ""
 local AttachLoop = nil
 local CurrentMode = ""
@@ -1962,8 +1960,6 @@ OthersTab:CreateButton({
         Rayfield:Notify({Title = "إيقاف", Content = "تم إيقاف الحركة بنجاح.", Duration = 2})
     end
 })
-
--- Global Chat
 local DATABASE_URL = "https://invictus-chat-default-rtdb.firebaseio.com/chat.json"
 local http_req = (syn and syn.request) or (http and http.request) or http_request or request
 
@@ -2043,4 +2039,547 @@ if http_req then
                         local msgTime = msg.timestamp or 0
                         local timeStr = os.date("%X", msgTime)
                         local username = msg.username or "Unknown"
-                        local
+                        local displayName = msg.sender or username
+                        local textMsg = tostring(msg.message)
+                        local tagInfo = CustomTags[username]
+                        local nameColor = DefaultNameColor
+                        local tagStr = ""
+                        if tagInfo then
+                            tagStr = "<b>[<font color='" .. tagInfo.Color .. "'>" .. tagInfo.Tag .. "</font>]</b> "
+                            nameColor = tagInfo.Color
+                        end
+                        local formattedSender = tagStr .. "<b><font color='" .. nameColor .. "'>" .. displayName .. "</font></b>"
+                        formattedChat = formattedChat .. "[" .. timeStr .. "] " .. formattedSender .. ":\n> " .. textMsg .. "\n\n"
+                        if msgTime > newLatestTimestamp then
+                            newLatestTimestamp = msgTime
+                            if not firstFetch and username ~= lp.Name then
+                                PlayNotificationSound()
+                                Rayfield:Notify({Title = "💬 Message from " .. displayName, Content = textMsg, Duration = 4})
+                            end
+                        end
+                    end
+
+                    latestTimestamp = newLatestTimestamp
+                    firstFetch = false
+                    if formattedChat == "" then formattedChat = "No messages available at the moment." end
+                    ChatDisplay:Set({Title = "💬 Global Chat (Invictus)", Content = formattedChat})
+                end
+            end
+        end)
+    end
+
+    task.spawn(function()
+        FetchMessages()
+        while task.wait(1) do FetchMessages() end
+    end)
+else
+    ChatTab:CreateParagraph({
+        Title = "❌ System Error",
+        Content = "Your Executor does not support external HTTP requests, so the chat will not work."
+    })
+end
+
+SettingsTab:CreateSection("Save Management (Settings)")
+SettingsTab:CreateButton({
+  Name = "💾 Save UI Settings (All)",
+  Callback = function()
+      pcall(function() Rayfield:SaveConfiguration() end)
+      Rayfield:Notify({Title = "Saved!", Content = "All UI toggles and settings saved", Duration = 3})
+  end
+})
+local AntiExplodeNotif = false
+
+SettingsTab:CreateToggle({
+    Name = "⚠️ Explosion Tracker",
+    CurrentValue = false,
+    Flag = "ExplodeTrackerToggle",
+    Callback = function(Value) AntiExplodeNotif = Value end
+})
+
+local UltraLoop = nil
+local Lighting = game:GetService("Lighting")
+
+local function ClearAllShaders()
+    if UltraLoop then UltraLoop:Disconnect(); UltraLoop = nil end
+    for _, shader in pairs(Lighting:GetChildren()) do
+        if shader:IsA("PostEffect") or shader:IsA("BlurEffect") or shader:IsA("SunRaysEffect") or shader:IsA("ColorCorrectionEffect") or shader:IsA("BloomEffect") or shader:IsA("DepthOfFieldEffect") or shader:IsA("Atmosphere") then
+            shader:Destroy()
+        end
+    end
+end
+
+local function NormalAntiLag()
+    ClearAllShaders()
+    Lighting.GlobalShadows = false
+    pcall(function() settings().Rendering.QualityLevel = Enum.QualityLevel.Level05 end)
+    for _, obj in pairs(game:GetDescendants()) do
+        if obj:IsA("ParticleEmitter") or obj:IsA("Sparkles") then obj.Enabled = false end
+    end
+end
+
+local function MediumAntiLag()
+    ClearAllShaders()
+    pcall(function() settings().Rendering.QualityLevel = Enum.QualityLevel.Level03 end)
+    Lighting.GlobalShadows = false
+    local Terrain = workspace:FindFirstChildOfClass("Terrain")
+    if Terrain then Terrain.WaterWaveSize = 0; Terrain.WaterWaveSpeed = 0 end
+    for _, obj in pairs(game:GetDescendants()) do
+        if obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Smoke") or obj:IsA("Sparkles") then obj.Enabled = false end
+    end
+end
+
+local function SuperAntiLag()
+    ClearAllShaders()
+    pcall(function() settings().Rendering.QualityLevel = Enum.QualityLevel.Level01 end)
+    Lighting.GlobalShadows = false
+    local Terrain = workspace:FindFirstChildOfClass("Terrain")
+    if Terrain then
+        Terrain.WaterWaveSize = 0; Terrain.WaterWaveSpeed = 0
+        Terrain.WaterReflectance = 0; Terrain.WaterDetailSize = 0
+    end
+    for _, obj in pairs(game:GetDescendants()) do
+        if obj:IsA("BasePart") or obj:IsA("MeshPart") then
+            obj.Material = Enum.Material.SmoothPlastic
+            obj.Reflectance = 0; obj.CastShadow = false
+        elseif obj:IsA("Texture") or obj:IsA("Decal") then obj:Destroy()
+        elseif obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Smoke") or obj:IsA("Sparkles") or obj:IsA("Fire") then
+            obj.Enabled = false
+        end
+    end
+end
+
+local function UltraAntiLag()
+    SuperAntiLag()
+    local function AbsolutePotato(obj)
+        if obj:IsA("BasePart") or obj:IsA("MeshPart") then
+            obj.Material = Enum.Material.SmoothPlastic
+            obj.CastShadow = false
+        elseif obj:IsA("Texture") or obj:IsA("Decal") or obj:IsA("Clothing") then obj:Destroy()
+        elseif obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Smoke") or obj:IsA("Sparkles") or obj:IsA("Fire") then
+            obj.Enabled = false
+        end
+    end
+    UltraLoop = game.DescendantAdded:Connect(function(newObj)
+        pcall(function() AbsolutePotato(newObj) end)
+    end)
+end
+
+local function ApplyRealistic()
+    ClearAllShaders()
+    Lighting.GlobalShadows = true
+    Lighting.Brightness = 2
+    Lighting.Ambient = Color3.fromRGB(40, 40, 50)
+    local Bloom = Instance.new("BloomEffect", Lighting)
+    Bloom.Intensity = 0.4; Bloom.Size = 12; Bloom.Threshold = 0.9
+    local ColorCorr = Instance.new("ColorCorrectionEffect", Lighting)
+    ColorCorr.Contrast = 0.1; ColorCorr.Saturation = 0.15
+end
+
+local function ApplySuperRealistic()
+    ClearAllShaders()
+    Lighting.GlobalShadows = true
+    Lighting.Brightness = 2.5
+    local Bloom = Instance.new("BloomEffect", Lighting)
+    Bloom.Intensity = 0.6; Bloom.Size = 24; Bloom.Threshold = 0.85
+    local SunRays = Instance.new("SunRaysEffect", Lighting)
+    SunRays.Intensity = 0.25; SunRays.Spread = 0.6
+    local ColorCorr = Instance.new("ColorCorrectionEffect", Lighting)
+    ColorCorr.Contrast = 0.2; ColorCorr.Saturation = 0.3
+    ColorCorr.TintColor = Color3.fromRGB(255, 245, 230)
+end
+
+local function ApplyUltraRealistic()
+    ClearAllShaders()
+    Lighting.GlobalShadows = true
+    Lighting.Brightness = 3
+    local Bloom = Instance.new("BloomEffect", Lighting)
+    Bloom.Intensity = 0.8; Bloom.Size = 30; Bloom.Threshold = 0.8
+    local SunRays = Instance.new("SunRaysEffect", Lighting)
+    SunRays.Intensity = 0.4; SunRays.Spread = 0.75
+    local ColorCorr = Instance.new("ColorCorrectionEffect", Lighting)
+    ColorCorr.Contrast = 0.25; ColorCorr.Saturation = 0.4
+    local Atmos = Instance.new("Atmosphere", Lighting)
+    Atmos.Density = 0.2; Atmos.Glare = 0.4; Atmos.Haze = 1.5
+    Atmos.Color = Color3.fromRGB(180, 200, 220); Atmos.Decay = Color3.fromRGB(120, 140, 160)
+    local DOF = Instance.new("DepthOfFieldEffect", Lighting)
+    DOF.FarIntensity = 0.2; DOF.FocusDistance = 20; DOF.InFocusRadius = 40; DOF.NearIntensity = 0.05
+end
+
+SettingsTab:CreateSection("Lag Optimizer")
+SettingsTab:CreateButton({ Name = "🟢 Normal Anti-Lag", Callback = function() NormalAntiLag(); Rayfield:Notify({Title = "Invictus v22", Content = "Basic performance tweaks applied.", Duration = 3}) end })
+SettingsTab:CreateButton({ Name = "🟡 Medium Anti-Lag", Callback = function() MediumAntiLag(); Rayfield:Notify({Title = "Invictus v22", Content = "Standard shaders disabled.", Duration = 3}) end })
+SettingsTab:CreateButton({ Name = "🟠 Super Anti-Lag", Callback = function() SuperAntiLag(); Rayfield:Notify({Title = "Invictus v22", Content = "Textures replaced with smooth plastic.", Duration = 3}) end })
+SettingsTab:CreateButton({ Name = "🔴 Ultra Anti-Lag (Potato Mode)", Callback = function() UltraAntiLag(); Rayfield:Notify({Title = "Invictus v22", Content = "Engine forced to minimum + live object wiper active!", Duration = 4}) end })
+
+SettingsTab:CreateSection("Beautiful Shaders")
+SettingsTab:CreateButton({ Name = "✨ Realistic Shader", Callback = function() ApplyRealistic(); Rayfield:Notify({Title = "Invictus v22", Content = "Ambient colors and light contrast boosted.", Duration = 3}) end })
+SettingsTab:CreateButton({ Name = "🔥 Super Realistic Shader", Callback = function() ApplySuperRealistic(); Rayfield:Notify({Title = "Invictus v22", Content = "Cinematic Sunrays and warm profile loaded!", Duration = 3}) end })
+SettingsTab:CreateButton({ Name = "👑 Ultra Realistic Shader (Next-Gen)", Callback = function() ApplyUltraRealistic(); Rayfield:Notify({Title = "Invictus v22", Content = "Next-gen Depth of Field and atmosphere activated!", Duration = 4}) end })
+
+task.spawn(function()
+    local LocalPlayer = Players.LocalPlayer
+    local StarterGui = game:GetService("StarterGui")
+    local Workspace = game:GetService("Workspace")
+
+    Workspace.DescendantAdded:Connect(function(obj)
+        if AntiExplodeNotif and obj:IsA("Explosion") then
+            local char = LocalPlayer.Character
+            if char and char:FindFirstChild("HumanoidRootPart") then
+                local distance = (obj.Position - char.HumanoidRootPart.Position).Magnitude
+                if distance < 15 then 
+                    local suspect = "Unknown (Server/GUI Mod)"
+                    local creatorTag = obj:FindFirstChild("creator")
+                    if creatorTag and creatorTag:IsA("ObjectValue") and creatorTag.Value then
+                        suspect = creatorTag.Value.Name
+                    end
+                    pcall(function()
+                        StarterGui:SetCore("SendNotification", {Title = "⚠️ Explosion Target!", Text = "Exploded by: " .. suspect, Duration = 6})
+                    end)
+                end
+            end
+        end
+    end)
+
+    local function monitorChat(player)
+        player.Chatted:Connect(function(msg)
+            if AntiExplodeNotif and string.match(string.lower(msg), "explode") then
+                pcall(function()
+                    StarterGui:SetCore("SendNotification", {Title = "⚠️ Admin Command!", Text = player.Name .. " is using explode commands!", Duration = 6})
+                end)
+            end
+        end)
+    end
+
+    for _, v in pairs(Players:GetPlayers()) do
+        if v ~= LocalPlayer then monitorChat(v) end
+    end
+    Players.PlayerAdded:Connect(function(player) monitorChat(player) end)
+end)
+RunService.Heartbeat:Connect(function(dt)
+  if IsInvisible and lp.Character then
+      local rootPart = lp.Character:FindFirstChild("HumanoidRootPart")
+      local humanoid = lp.Character:FindFirstChild("Humanoid")
+      if rootPart and humanoid then
+          local cf = rootPart.CFrame
+          local camOffset = humanoid.CameraOffset
+          local hidden = cf * CFrame.new(0, -200000, 0)
+          rootPart.CFrame = hidden
+          humanoid.CameraOffset = hidden:ToObjectSpace(CFrame.new(cf.Position)).Position
+          RunService.RenderStepped:Wait()
+          if rootPart.Parent then 
+              rootPart.CFrame = cf
+              humanoid.CameraOffset = camOffset
+          end
+      end
+  end
+
+  if isSpeedEnabled and lp.Character then
+      local hum = lp.Character:FindFirstChildOfClass("Humanoid")
+      local root = lp.Character:FindFirstChild("HumanoidRootPart")
+      if hum and root then
+          hum.WalkSpeed = currentWalkSpeed
+          if hum.MoveDirection.Magnitude > 0 then
+              root.AssemblyLinearVelocity = Vector3.new(
+                  hum.MoveDirection.X * currentWalkSpeed,
+                  root.AssemblyLinearVelocity.Y,
+                  hum.MoveDirection.Z * currentWalkSpeed
+              )
+          else
+              root.AssemblyLinearVelocity = Vector3.new(0, root.AssemblyLinearVelocity.Y, 0)
+          end
+      end
+  end
+
+  if AuraEnabled then
+      local currentTick = tick()
+      if currentTick - lastHitTick >= (1 / apsVal) then
+          lastHitTick = currentTick
+          local ch = lp.Character
+          if ch then
+              local myhrp = ch:FindFirstChild("HumanoidRootPart")
+              if myhrp then
+                  local nearest, nearDist = nil, math.huge
+                  for _, p in ipairs(Players:GetPlayers()) do
+                      if p ~= lp and p.Character and not isSafe(p.Name) and isTarget(p.Name) then
+                          local hrp = p.Character:FindFirstChild("HumanoidRootPart")
+                          local hum = p.Character:FindFirstChildOfClass("Humanoid")
+                          if hrp and hum and hum.Health > 0 then
+                              local dist = (hrp.Position - myhrp.Position).Magnitude
+                              if dist <= rangeVal and dist < nearDist then
+                                  nearDist = dist; nearest = {hum = hum, pos = hrp.Position + hrp.CFrame.LookVector * 2}
+                              end
+                          end
+                      end
+                  end
+                  if nearest then task.spawn(function() doHit(nearest.hum, nearest.pos) end) end
+              end
+          end
+      end
+  end
+
+  local shouldGrab = AutoGrab
+  local activeTargetHRP = nil 
+
+  if AutoTargetEnabled then
+      local myChar = lp.Character
+      if myChar and myChar:FindFirstChild("HumanoidRootPart") then
+          for _, player in ipairs(Players:GetPlayers()) do
+              if player ~= lp and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                  if (myChar.HumanoidRootPart.Position - player.Character.HumanoidRootPart.Position).Magnitude <= TriggerDistance then
+                      shouldGrab = true
+                      activeTargetHRP = player.Character.HumanoidRootPart
+                      break
+                  end
+              end
+          end
+      end
+  end
+  
+  if SpecificTargetEnabled then
+      local myChar = lp.Character
+      if myChar and myChar:FindFirstChild("HumanoidRootPart") then
+          local function checkTarget(targetName)
+              if targetName ~= "" and targetName ~= "None" then
+                  local p = Players:FindFirstChild(targetName)
+                  if p and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                      if (myChar.HumanoidRootPart.Position - p.Character.HumanoidRootPart.Position).Magnitude <= TriggerDistance then
+                          return p.Character.HumanoidRootPart
+                      end
+                  end
+              end
+              return nil
+          end
+          activeTargetHRP = checkTarget(ChosenTargetName1)
+          if not activeTargetHRP then activeTargetHRP = checkTarget(ChosenTargetName2) end
+          if not activeTargetHRP then activeTargetHRP = checkTarget(ChosenTargetName3) end
+          if activeTargetHRP then shouldGrab = shouldGrab or true end
+      end
+  end
+
+  if SpinbotEnabled and lp.Character and lp.Character:FindFirstChild("HumanoidRootPart") and lp.Character:FindFirstChild("Humanoid") then
+      local myRoot = lp.Character.HumanoidRootPart
+      local hum = lp.Character.Humanoid
+      hum.AutoRotate = false 
+      local oldBg = myRoot:FindFirstChild("SpinbotGyro")
+      if oldBg then oldBg:Destroy() end
+      _G.SpinAngle = ((_G.SpinAngle or 0) + math.rad(SpinbotSpeed * (dt * 60))) % (math.pi * 2)
+      local currentPos = myRoot.Position
+      myRoot.CFrame = CFrame.new(currentPos) * CFrame.Angles(0, _G.SpinAngle, 0)
+  else
+      if lp.Character and lp.Character:FindFirstChild("Humanoid") then
+          lp.Character.Humanoid.AutoRotate = true
+      end
+  end
+
+  local myChar = lp.Character
+  if myChar and myChar:FindFirstChild("HumanoidRootPart") then
+      local myRoot = myChar.HumanoidRootPart
+      local currentGrabPower = lp:GetAttribute("GrabPower") or 0
+      local isFighting = lp:GetAttribute("Fighting")
+
+      for _, p in ipairs(Players:GetPlayers()) do
+          if p ~= lp and p.Character and p.Character:FindFirstChild("HumanoidRootPart") and isSelectedEnemy(p.Name) then
+              local dist = (myRoot.Position - p.Character.HumanoidRootPart.Position).Magnitude
+              if dist <= TriggerDistance then
+                  activeTargetHRP = p.Character.HumanoidRootPart
+                  shouldGrab = true
+                  break
+              end
+          end
+      end
+      
+      if activeTargetHRP then
+          if not isFighting then
+              if AutoLookEnabled then
+                  local targetPos = Vector3.new(activeTargetHRP.Position.X, myRoot.Position.Y, activeTargetHRP.Position.Z)
+                  if (targetPos - myRoot.Position).Magnitude > 0.5 then
+                      local bg = myRoot:FindFirstChild("AutoLookGyro")
+                      if not bg then
+                          bg = Instance.new("BodyGyro")
+                          bg.Name = "AutoLookGyro"
+                          bg.MaxTorque = Vector3.new(0, 400000, 0)
+                          bg.P = 30000
+                          bg.D = 100
+                          bg.Parent = myRoot
+                      end
+                      bg.CFrame = CFrame.lookAt(myRoot.Position, targetPos)
+                  else
+                      removeLookGyro()
+                  end
+              else
+                  removeLookGyro()
+              end
+              
+              if AutoMagnetEnabled and currentGrabPower >= 100 then
+                  local targetVelocity = activeTargetHRP.AssemblyLinearVelocity
+                  local pingPrediction = targetVelocity * 0.05
+                  myRoot.CFrame = (activeTargetHRP.CFrame + pingPrediction) * CFrame.new(0, 0, 2.5)
+                  if firetouchinterest then
+                      firetouchinterest(myRoot, activeTargetHRP, 0)
+                      task.wait()
+                      firetouchinterest(myRoot, activeTargetHRP, 1)
+                  end
+              end
+          else
+              removeLookGyro()
+          end
+
+          if IsHoldingMagnet and currentGrabPower >= 100 then
+              local targetVelocity = activeTargetHRP.AssemblyLinearVelocity
+              local pingPrediction = targetVelocity * 0.05
+              myRoot.CFrame = (activeTargetHRP.CFrame + pingPrediction) * CFrame.new(0, 0, 2.5)
+              if firetouchinterest then
+                  firetouchinterest(myRoot, activeTargetHRP, 0)
+                  task.wait()
+                  firetouchinterest(myRoot, activeTargetHRP, 1)
+              end
+          end
+      else
+          removeLookGyro()
+      end
+  end
+
+  if shouldGrab and GrabRF then
+      for i = 1, grabRepeatVal do 
+          task.spawn(function() 
+              pcall(function() GrabRF:InvokeServer() end) 
+          end) 
+      end
+  end
+end)
+
+local UIKeys = {
+    Invis = Enum.KeyCode.Z,
+    Magnet = Enum.KeyCode.X,
+    Fling = Enum.KeyCode.C
+}
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == UIKeys.Invis and InvisGui.Enabled then
+        IsInvisible = not IsInvisible
+        if lp.Character and lp.Character:FindFirstChild("HumanoidRootPart") then
+            local root = lp.Character.HumanoidRootPart
+            root.CFrame = root.CFrame + Vector3.new(0, 0.05, 0)
+            root.AssemblyLinearVelocity = Vector3.new(0, 0.1, 0)
+        end
+        if IsInvisible then
+            FloatBtn.BackgroundColor3 = Color3.fromRGB(60, 220, 60); FloatBtn.Text = "Invis: ✅"
+            updateInvisParts()
+            for _, item in pairs(invisParts) do if item.obj and item.obj.Parent then item.obj.Transparency = 0.5 end end
+        else
+            FloatBtn.BackgroundColor3 = Color3.fromRGB(220, 60, 60); FloatBtn.Text = "Invis: ❌"
+            for _, item in pairs(invisParts) do if item.obj and item.obj.Parent then item.obj.Transparency = item.origTrans end end
+        end
+    elseif input.KeyCode == UIKeys.Magnet and MagnetGui.Enabled then
+        IsHoldingMagnet = true
+        HoldMagBtn.BackgroundColor3 = Color3.fromRGB(60, 220, 60)
+    elseif input.KeyCode == UIKeys.Fling and FlingGui.Enabled then
+        if type(toggleFling) == "function" then toggleFling() end
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == UIKeys.Magnet and MagnetGui.Enabled then
+        IsHoldingMagnet = false
+        HoldMagBtn.BackgroundColor3 = Color3.fromRGB(60, 100, 220)
+    end
+end)
+
+SettingsTab:CreateSection("⌨️ تعديل أزرار الكيبورد (Keybinds)")
+SettingsTab:CreateInput({ Name = "زر الاختفاء (Invis)", PlaceholderText = "Z", RemoveTextAfterFocusLost = true, Callback = function(Text)
+    local success, key = pcall(function() return Enum.KeyCode[string.upper(Text)] end)
+    if success and key then UIKeys.Invis = key end
+end })
+SettingsTab:CreateInput({ Name = "زر المغناطيس (Magnet)", PlaceholderText = "X", RemoveTextAfterFocusLost = true, Callback = function(Text)
+    local success, key = pcall(function() return Enum.KeyCode[string.upper(Text)] end)
+    if success and key then UIKeys.Magnet = key end
+end })
+SettingsTab:CreateInput({ Name = "زر الفلنق (Fling)", PlaceholderText = "C", RemoveTextAfterFocusLost = true, Callback = function(Text)
+    local success, key = pcall(function() return Enum.KeyCode[string.upper(Text)] end)
+    if success and key then UIKeys.Fling = key end
+end })
+
+task.defer(function()
+    pcall(function() Rayfield:LoadConfiguration() end)
+end)
+
+local function AutoRefreshAllPlayerLists()
+    pcall(function()
+        if AuraTargetDropdown then
+            local currentAura = AuraTargetSelected or "All"
+            local newAuraList = getPlayerNames(true)
+            AuraTargetDropdown:Refresh(newAuraList)
+            if table.find(newAuraList, currentAura) then
+                AuraTargetDropdown:Set({currentAura})
+            else
+                AuraTargetSelected = "All"
+                AuraTargetDropdown:Set({"All"})
+            end
+        end
+    end)
+    
+    pcall(function()
+        local newTargets = getPlayerNamesForTargets()
+        if TargetDropdown1 then TargetDropdown1:Refresh(newTargets) end
+        if TargetDropdown2 then TargetDropdown2:Refresh(newTargets) end
+        if TargetDropdown3 then TargetDropdown3:Refresh(newTargets) end
+    end)
+    
+    pcall(function()
+        if TpDropdown then TpDropdown:Refresh(getPlayerNames(false)) end
+    end)
+    
+    pcall(function()
+        if SafeDropdowns then
+            local names = getPlayerNamesWithNone()
+            for i = 1, 10 do
+                if SafeDropdowns[i] then SafeDropdowns[i]:Refresh(names) end
+            end
+        end
+    end)
+    
+    pcall(function()
+        if EnemyDropdowns then
+            local names = getPlayerNamesWithNone()
+            for i = 1, 10 do
+                if EnemyDropdowns[i] then EnemyDropdowns[i]:Refresh(names) end
+            end
+        end
+    end)
+    
+    pcall(function()
+        if OutfitPlayerDropdown then OutfitPlayerDropdown:Refresh(getOutfitPlayerNames()) end
+    end)
+    
+    pcall(function()
+        if PlayerDropdown and GetPlayerNames then PlayerDropdown:Refresh(GetPlayerNames(), {"اختر لاعباً..."}) end
+    end)
+end
+
+local refreshDebounce = false
+local function ScheduleAutoRefresh()
+    if refreshDebounce then return end
+    refreshDebounce = true
+    task.delay(2, function()
+        AutoRefreshAllPlayerLists()
+        refreshDebounce = false
+    end)
+end
+
+Players.PlayerAdded:Connect(function(plr) ScheduleAutoRefresh() end)
+Players.PlayerRemoving:Connect(function(plr) ScheduleAutoRefresh() end)
+
+lp.CharacterAdded:Connect(function()
+    task.wait(1)
+    ScheduleAutoRefresh()
+end)
+
+task.spawn(function()
+    while task.wait(15) do
+        ScheduleAutoRefresh()
+    end
+end)
+
+getgenv().InvictusScript_Ready = true
